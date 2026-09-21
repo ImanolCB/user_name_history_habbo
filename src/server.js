@@ -119,7 +119,7 @@ async function refreshUser(sourceName) {
 app.get('/api/health', (_request, response) => response.json({ ok: true }));
 app.get('/api/auth/me', (request, response) => response.json({ admin: Boolean(isAdmin(request)), turso: useTurso }));
 app.get('/api/users', async (request, response) => {
-  response.setHeader('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=60');
+  response.setHeader('Cache-Control', isAdmin(request) ? 'private, no-store' : 'public, s-maxage=30, stale-while-revalidate=60');
   response.json(await listUsers(request.query));
 });
 app.get('/api/users/:id/history', async (request, response) => {

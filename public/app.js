@@ -128,7 +128,12 @@ async function deleteUser(id) {
   if (!confirm('¿Eliminar este registro?')) return;
   setBusy(true, 'Eliminando registro...');
   const response = await fetch(`/api/users/${id}`, { method: 'DELETE', headers: adminHeaders() });
-  if (!response.ok) { setBusy(false, 'No se pudo eliminar el registro.'); return; }
+  if (!response.ok) {
+    let detail = 'No se pudo eliminar el registro.';
+    try { detail = (await response.json()).error || detail; } catch (_error) { /* respuesta sin JSON */ }
+    setBusy(false, detail);
+    return;
+  }
   await loadUsers();
   setBusy(false, 'Registro eliminado.');
 }
