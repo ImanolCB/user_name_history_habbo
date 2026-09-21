@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HabboNames</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="icon" type="image/png" href="/favicon.png">
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <p class="eyebrow">Habbo · directorio local</p>
+      <h1>Comprueba tus nombres,<br><em>sin perder el hilo.</em></h1>
+      <p class="intro">Carga un CSV y consulta Habbo. Los resultados se guardan localmente para que las siguientes revisiones usen el <strong>uniqueId</strong> de cada usuario.</p>
+    </header>
+
+    <section class="toolbar" aria-label="Acciones">
+      <label class="upload">
+        <input id="csv-file" type="file" accept=".csv,text/csv">
+        <span>Elegir CSV</span>
+      </label>
+      <button id="import-button" class="button button-primary" type="button" disabled>Importar y consultar</button>
+      <button id="refresh-button" class="button button-secondary" type="button">Sincronizar nombres actuales</button>
+      <button id="add-button" class="button button-secondary" type="button">Añadir registro</button>
+      <button id="admin-button" class="button button-secondary" type="button">Ver actividad</button>
+      <span id="message" class="message" role="status"></span>
+    </section>
+
+    <section class="search-bar">
+      <label for="search-input">Buscar por nombre actual o anterior</label>
+      <input id="search-input" type="search" placeholder="Escribe un nombre..." autocomplete="off">
+    </section>
+
+    <section class="stats" aria-label="Resumen">
+      <div><span id="total-count">0</span><small>registros</small></div>
+      <div><span id="found-count">0</span><small>encontrados</small></div>
+      <div><span id="missing-count">0</span><small>no encontrados</small></div>
+    </section>
+
+    <section class="table-wrap">
+      <table>
+        <thead><tr><th>Nombre buscado</th><th>Usuario Habbo</th><th>Motto</th><th>Unique ID</th><th><label class="status-filter" for="status-filter">Estado</label><select id="status-filter" aria-label="Filtrar por estado"><option value="">Todos</option><option value="error">Error</option><option value="found">Encontrados</option><option value="not_found">No existen</option></select></th><th>Última revisión</th><th>Acciones</th></tr></thead>
+        <tbody id="users-body"><tr><td colspan="7" class="empty">Todavía no hay registros. Selecciona un CSV para empezar.</td></tr></tbody>
+      </table>
+    </section>
+    <nav class="pagination" aria-label="Paginación">
+      <button id="previous-page" class="button button-secondary" type="button">Anterior</button>
+      <span id="page-label">Página 1 de 1</span>
+      <button id="next-page" class="button button-secondary" type="button">Siguiente</button>
+    </nav>
+  </main>
+  <dialog id="record-dialog">
+    <form id="record-form">
+      <p class="eyebrow">Registro individual</p>
+      <h2 id="record-title">Añadir registro</h2>
+      <label for="record-name">Nombre de Habbo</label>
+      <input id="record-name" name="name" required maxlength="80" autocomplete="off">
+      <div class="dialog-actions"><button class="button button-secondary" type="button" data-close="record-dialog">Cancelar</button><button class="button button-primary" type="submit">Guardar y consultar</button></div>
+      <p id="record-message" class="message"></p>
+    </form>
+  </dialog>
+  <dialog id="history-dialog">
+    <form method="dialog"><button class="dialog-close" aria-label="Cerrar">×</button></form>
+    <p class="eyebrow">Historial de nombres</p>
+    <h2 id="history-title"></h2>
+    <div id="history-list"></div>
+  </dialog>
+  <dialog id="admin-dialog">
+    <form id="admin-login-form">
+      <p class="eyebrow">Permiso especial</p>
+      <h2>Actividad de sincronización</h2>
+      <label for="admin-password">Contraseña</label>
+      <input id="admin-password" type="password" required>
+      <div class="dialog-actions"><button class="button button-secondary" type="button" data-close="admin-dialog">Cancelar</button><button class="button button-primary" type="submit">Entrar</button></div>
+      <p id="admin-message" class="message"></p>
+    </form>
+  </dialog>
+  <dialog id="activity-dialog">
+    <form method="dialog"><button class="dialog-close" aria-label="Cerrar">×</button></form>
+    <p class="eyebrow">Vista protegida</p>
+    <h2>Actualizaciones</h2>
+    <div class="activity-table-wrap"><table><thead><tr><th>Fecha y hora</th><th>Registro</th><th>Detalle</th></tr></thead><tbody id="activity-body"></tbody></table></div>
+  </dialog>
+  <dialog id="update-dialog">
+    <form method="dialog"><button class="dialog-close" aria-label="Cerrar">×</button></form>
+    <p class="eyebrow">Detalle de actualización</p>
+    <div id="update-detail"></div>
+  </dialog>
+  <script src="/app.js" defer></script>
+</body>
+</html>
