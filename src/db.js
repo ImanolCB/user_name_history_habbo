@@ -83,14 +83,16 @@ async function listUsers({ query = '', status = '', page = 1, pageSize = 25 } = 
   const safeStatus = ['found', 'not_found', 'error'].includes(status) ? status : '';
   const text = query.trim();
   const filter = `%${text}%`;
-  const where = `WHERE (? = '' OR users.status = ?)
-    AND (? = '' OR users.source_name LIKE ? COLLATE NOCASE OR users.habbo_name LIKE ? COLLATE NOCASE
+  const textWhere = `(? = '' OR users.source_name LIKE ? COLLATE NOCASE OR users.habbo_name LIKE ? COLLATE NOCASE
       OR EXISTS (SELECT 1 FROM name_history WHERE name_history.unique_id = users.unique_id AND name_history.habbo_name LIKE ? COLLATE NOCASE))`;
+  const where = `WHERE (? = '' OR users.status = ?) AND ${textWhere}`;
   const args = [safeStatus, safeStatus, text, filter, filter, filter];
   const totalRow = await one(`SELECT COUNT(*) AS total FROM users ${where}`, args);
   const users = await many(`SELECT users.* FROM users ${where} ORDER BY users.source_name COLLATE NOCASE LIMIT ? OFFSET ?`, [...args, safePageSize, (safePage - 1) * safePageSize]);
+  const countRows = await many(`SELECT users.status, COUNT(*) AS total FROM users WHERE ${textWhere} GROUP BY users.status`, [text, filter, filter, filter]);
+  const counts = Object.fromEntries(countRows.map((row) => [row.status, Number(row.total)]));
   const total = Number(totalRow.total);
-  return { users, total, page: safePage, pageSize: safePageSize, totalPages: Math.max(1, Math.ceil(total / safePageSize)) };
+  return { users, total, counts: { found: counts.found || 0, not_found: counts.not_found || 0, error: counts.error || 0 }, page: safePage, pageSize: safePageSize, totalPages: Math.max(1, Math.ceil(total / safePageSize)) };
 }
 
 async function saveUser(user) {

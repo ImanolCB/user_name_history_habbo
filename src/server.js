@@ -134,7 +134,7 @@ app.post('/api/import', requireAdmin, upload.single('file'), async (request, res
   const results = [];
   for (const name of uniqueNames) {
     const existing = await findBySourceName(name);
-    results.push(existing || await refreshUser(name));
+    results.push(existing || await saveUser({ sourceName: name, uniqueId: null, habboName: null, motto: '', status: 'pending', lastCheckedAt: null }));
   }
   response.json({ imported: results.length, users: results });
 });

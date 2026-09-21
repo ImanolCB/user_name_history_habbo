@@ -8,6 +8,7 @@ const body = document.querySelector('#users-body');
 const message = document.querySelector('#message');
 const state = { page: 1, query: '', status: '', totalPages: 1, editingId: null, adminToken: null };
 let isAdmin = false;
+let busy = false;
 
 state.adminToken = sessionStorage.getItem('habbo_admin_token');
 
@@ -15,7 +16,10 @@ function adminHeaders(extra = {}) {
   return state.adminToken ? { ...extra, 'x-admin-token': state.adminToken } : extra;
 }
 
-fileInput.addEventListener('change', () => { importButton.disabled = !fileInput.files.length; });
+fileInput.addEventListener('change', () => {
+  importButton.disabled = !fileInput.files.length;
+  document.querySelector('#file-name').textContent = fileInput.files[0]?.name || 'Ningún archivo seleccionado';
+});
 importButton.addEventListener('click', submitImport);
 refreshButton.addEventListener('click', submitRefresh);
 addButton.addEventListener('click', () => openRecordDialog());
@@ -60,7 +64,7 @@ async function loadAuth() {
 }
 
 function applyAdminVisibility(adminSurface = location.pathname.startsWith('/admin/')) {
-  [fileInput.closest('.upload'), importButton, refreshButton, addButton].forEach((element) => { element.hidden = !isAdmin; });
+  [fileInput.closest('.upload-group'), importButton, refreshButton, addButton].forEach((element) => { element.hidden = !isAdmin; });
   adminButton.hidden = !adminSurface;
   adminButton.textContent = isAdmin ? 'Abrir dashboard' : 'Acceder';
   document.querySelector('#suggestion-section').hidden = isAdmin;
@@ -92,7 +96,7 @@ async function submitImport() {
     const result = await response.json();
     if (!response.ok) throw new Error(result.error);
     state.page = 1;
-    message.textContent = `${result.imported} registro(s) importado(s).`;
+    message.textContent = `OK: ${result.imported} registro(s) cargado(s).`;
     await loadUsers();
   } catch (error) { message.textContent = error.message; } finally { setBusy(false); }
 }
@@ -110,21 +114,23 @@ async function submitRefresh() {
 
 async function refreshOne(button) {
   button.disabled = true;
+  setBusy(true, 'Actualizando este registro...');
   try {
     const response = await fetch(`/api/users/${button.dataset.id}/refresh`, { method: 'POST', headers: adminHeaders() });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error);
     message.textContent = `Registro de ${result.source_name} actualizado.`;
     await loadUsers();
-  } catch (error) { message.textContent = error.message; } finally { button.disabled = false; }
+  } catch (error) { message.textContent = error.message; } finally { button.disabled = false; setBusy(false); }
 }
 
 async function deleteUser(id) {
   if (!confirm('¿Eliminar este registro?')) return;
+  setBusy(true, 'Eliminando registro...');
   const response = await fetch(`/api/users/${id}`, { method: 'DELETE', headers: adminHeaders() });
-  if (!response.ok) { message.textContent = 'No se pudo eliminar el registro.'; return; }
-  message.textContent = 'Registro eliminado.';
+  if (!response.ok) { setBusy(false, 'No se pudo eliminar el registro.'); return; }
   await loadUsers();
+  setBusy(false, 'Registro eliminado.');
 }
 
 function openRecordDialog(id = null, name = '') {
@@ -137,14 +143,16 @@ function openRecordDialog(id = null, name = '') {
 
 async function saveRecord(event) {
   event.preventDefault();
+  setBusy(true, 'Guardando y consultando registro...');
   const name = document.querySelector('#record-name').value;
   const endpoint = state.editingId ? `/api/users/${state.editingId}` : '/api/users';
   const response = await fetch(endpoint, { method: state.editingId ? 'PATCH' : 'POST', headers: adminHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ name }) });
   const result = await response.json();
-  if (!response.ok) { document.querySelector('#record-message').textContent = result.error; return; }
+  if (!response.ok) { document.querySelector('#record-message').textContent = result.error; setBusy(false); return; }
   document.querySelector('#record-dialog').close();
   message.textContent = `Registro de ${result.source_name} guardado.`;
   await loadUsers();
+  setBusy(false, `Registro de ${result.source_name} guardado.`);
 }
 
 async function showHistory(id, name) {
@@ -194,19 +202,27 @@ async function processAllSuggestions(status) {
 function render(result) {
   const users = result.users || [];
   document.querySelector('#total-count').textContent = result.total ?? users.length;
-  document.querySelector('#found-count').textContent = users.filter((user) => user.status === 'found').length;
-  document.querySelector('#missing-count').textContent = users.filter((user) => user.status === 'not_found').length;
+  document.querySelector('#found-count').textContent = result.counts?.found ?? users.filter((user) => user.status === 'found').length;
+  document.querySelector('#missing-count').textContent = result.counts?.not_found ?? users.filter((user) => user.status === 'not_found').length;
   state.totalPages = result.totalPages || 1;
   document.querySelector('#page-label').textContent = `Página ${result.page || 1} de ${state.totalPages}`;
   document.querySelector('#previous-page').disabled = state.page <= 1;
   document.querySelector('#next-page').disabled = state.page >= state.totalPages;
-  body.innerHTML = users.length ? users.map((user) => `<tr><td>${escapeHtml(user.source_name)}</td><td><strong>${escapeHtml(user.habbo_name || '—')}</strong>${user.unique_id ? `<button class="link-button" data-action="history" data-id="${user.id}" data-name="${escapeHtml(user.habbo_name || user.source_name)}">Ver historial</button>` : ''}</td><td>${escapeHtml(user.motto || '—')}</td><td>${escapeHtml(user.unique_id || '—')}</td><td><span class="badge ${user.status}">${label(user.status)}</span></td><td>${user.last_checked_at ? new Date(user.last_checked_at).toLocaleString('es-ES') : '—'}</td><td>${isAdmin ? `<button class="row-action" data-action="refresh" data-id="${user.id}">Actualizar</button>${user.status === 'error' ? `<button class="link-button" data-action="edit" data-id="${user.id}" data-name="${escapeHtml(user.source_name)}">Editar</button>` : ''}<button class="link-button" data-action="delete" data-id="${user.id}">Eliminar</button>` : '—'}</td></tr>`).join('') : '<tr><td colspan="7" class="empty">No hay registros para esta búsqueda.</td></tr>';
+  body.innerHTML = users.length ? users.map((user) => `<tr><td>${escapeHtml(user.source_name)}</td><td><strong>${escapeHtml(user.habbo_name || '—')}</strong>${user.unique_id ? `<button class="link-button" data-action="history" data-id="${user.id}" data-name="${escapeHtml(user.habbo_name || user.source_name)}">Ver historial</button>` : ''}</td><td>${escapeHtml(user.motto || '—')}</td><td>${escapeHtml(user.unique_id || '—')}</td><td><span class="badge ${user.status}">${label(user.status)}</span></td><td>${user.last_checked_at ? new Date(user.last_checked_at).toLocaleString('es-ES') : '—'}</td><td>${isAdmin ? `<button class="row-action" data-action="refresh" data-id="${user.id}">Actualizar</button>${['error', 'not_found'].includes(user.status) ? `<button class="link-button" data-action="edit" data-id="${user.id}" data-name="${escapeHtml(user.source_name)}">Editar</button>` : ''}<button class="link-button" data-action="delete" data-id="${user.id}">Eliminar</button>` : '—'}</td></tr>`).join('') : '<tr><td colspan="7" class="empty">No hay registros para esta búsqueda.</td></tr>';
 }
 
 function changePage(delta) { state.page = Math.min(state.totalPages, Math.max(1, state.page + delta)); loadUsers(); }
 function label(status) { return ({ found: 'Encontrado', not_found: 'No existe', error: 'Error', pending: 'Pendiente' })[status] || status; }
 function escapeHtml(value) { return String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[char]); }
-function setBusy(busy, text = '') { importButton.disabled = busy || !fileInput.files.length; refreshButton.disabled = busy; addButton.disabled = busy; message.textContent = text; }
+function setBusy(nextBusy, text = '') {
+  busy = nextBusy;
+  importButton.disabled = busy || !fileInput.files.length;
+  refreshButton.disabled = busy;
+  addButton.disabled = busy;
+  document.querySelector('#loading-indicator').hidden = !busy;
+  document.querySelector('#loading-text').textContent = text || 'Cargando...';
+  if (text) message.textContent = text;
+}
 function debounce(callback, delay) { let timeout; return (...args) => { clearTimeout(timeout); timeout = setTimeout(() => callback(...args), delay); }; }
 
 loadAuth().then(loadUsers).catch(() => { message.textContent = 'No se pudo cargar la aplicación.'; });

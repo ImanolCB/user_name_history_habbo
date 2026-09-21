@@ -16,20 +16,18 @@
     </header>
 
     <section class="toolbar" aria-label="Acciones">
-      <label class="upload" hidden>
-        <input id="csv-file" type="file" accept=".csv,text/csv">
-        <span>Elegir CSV</span>
-      </label>
-      <button id="import-button" class="button button-primary" type="button" disabled hidden>Importar y consultar</button>
+      <div class="upload-group" hidden>
+        <label class="upload">
+          <input id="csv-file" type="file" accept=".csv,text/csv">
+          <span>Subir CSV</span>
+        </label>
+        <small id="file-name" class="file-name">Ningún archivo seleccionado</small>
+      </div>
+      <button id="import-button" class="button button-primary" type="button" disabled hidden>Importar</button>
+      <button id="admin-button" class="button button-secondary" type="button" hidden>Abrir dashboard</button>
       <button id="refresh-button" class="button button-secondary" type="button" hidden>Sincronizar nombres actuales</button>
       <button id="add-button" class="button button-secondary" type="button" hidden>Añadir registro</button>
-      <button id="admin-button" class="button button-secondary" type="button" hidden>Ver actividad</button>
       <span id="message" class="message" role="status"></span>
-    </section>
-
-    <section class="search-bar">
-      <label for="search-input">Buscar por nombre actual o anterior</label>
-      <input id="search-input" type="search" placeholder="Escribe un nombre..." autocomplete="off">
     </section>
 
     <section id="suggestion-section" class="suggestion-panel">
@@ -43,13 +41,18 @@
       <p id="suggestion-message" class="message"></p>
     </section>
 
-    <section class="stats" aria-label="Resumen">
-      <div><span id="total-count">0</span><small>registros</small></div>
-      <div><span id="found-count">0</span><small>encontrados</small></div>
-      <div><span id="missing-count">0</span><small>no encontrados</small></div>
-    </section>
-
     <section class="table-wrap">
+      <div class="table-toolbar">
+        <div class="search-bar">
+          <label for="search-input">Buscar nombre</label>
+          <input id="search-input" type="search" placeholder="Actual o anterior..." autocomplete="off">
+        </div>
+        <section class="stats" aria-label="Resumen">
+          <div><span id="total-count">0</span><small>registros</small></div>
+          <div><span id="found-count">0</span><small>encontrados</small></div>
+          <div><span id="missing-count">0</span><small>no encontrados</small></div>
+        </section>
+      </div>
       <table>
         <thead><tr><th>Nombre buscado</th><th>Usuario Habbo</th><th>Motto</th><th>Unique ID</th><th><label class="status-filter" for="status-filter">Estado</label><select id="status-filter" aria-label="Filtrar por estado"><option value="">Todos</option><option value="error">Error</option><option value="found">Encontrados</option><option value="not_found">No existen</option></select></th><th>Última revisión</th><th>Acciones</th></tr></thead>
         <tbody id="users-body"><tr><td colspan="7" class="empty">Todavía no hay registros. Selecciona un CSV para empezar.</td></tr></tbody>
@@ -61,6 +64,7 @@
       <button id="next-page" class="button button-secondary" type="button">Siguiente</button>
     </nav>
   </main>
+  <div id="loading-indicator" class="loading-indicator" hidden role="status" aria-live="polite"><span class="spinner"></span><span id="loading-text">Cargando...</span></div>
   <dialog id="record-dialog">
     <form id="record-form">
       <p class="eyebrow">Registro individual</p>
