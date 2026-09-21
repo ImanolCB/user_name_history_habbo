@@ -3,16 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>HabboNames</title>
+  <title>HabboNames | Historial de nombres de Habbo</title>
+  <meta name="description" content="Consulta nombres actuales e históricos de usuarios de Habbo y envía sugerencias para ampliar el registro.">
+  <meta name="robots" content="index, follow">
+  <meta property="og:title" content="HabboNames | Historial de nombres de Habbo">
+  <meta property="og:description" content="Consulta nombres actuales e históricos de usuarios de Habbo.">
+  <meta property="og:type" content="website">
   <link rel="stylesheet" href="/styles.css">
   <link rel="icon" type="image/png" href="/favicon.png">
 </head>
 <body>
   <main class="shell">
     <header class="hero">
-      <p class="eyebrow">Habbo · directorio local</p>
+      <p class="eyebrow">Habbo · historial de nombres</p>
       <h1>Comprueba tus nombres,<br><em>sin perder el hilo.</em></h1>
-      <p class="intro">Carga un CSV y consulta Habbo. Los resultados se guardan localmente para que las siguientes revisiones usen el <strong>uniqueId</strong> de cada usuario.</p>
+      <p class="intro">Consulta nombres actuales e históricos de usuarios de Habbo mediante su <strong>uniqueId</strong> y solicita nuevas incorporaciones desde la bandeja de sugerencias.</p>
     </header>
 
     <section class="toolbar" aria-label="Acciones">
@@ -32,10 +37,11 @@
 
     <section id="suggestion-section" class="suggestion-panel">
       <p class="eyebrow">Bandeja de entrada</p>
-      <h2>¿Qué nombre quieres que revisemos?</h2>
+      <h2>¿Qué usuario quieres proponer?</h2>
+      <p class="suggestion-help">Escribe en <strong>Nombre</strong> el usuario al que se refiere tu petición y en <strong>Petición</strong> explica qué quieres que revisemos o añadamos.</p>
       <form id="suggestion-form" class="suggestion-form">
-        <input id="suggestion-name" name="name" maxlength="80" placeholder="Nombre de Habbo" required>
-        <input id="suggestion-note" name="note" maxlength="240" placeholder="Nota opcional">
+        <label>Nombre<input id="suggestion-name" name="name" maxlength="80" placeholder="Nombre de Habbo" required></label>
+        <label>Petición<input id="suggestion-note" name="note" maxlength="240" placeholder="Qué quieres solicitar"></label>
         <button class="button button-primary" type="submit">Enviar sugerencia</button>
       </form>
       <p id="suggestion-message" class="message"></p>
@@ -54,7 +60,7 @@
         </section>
       </div>
       <table>
-        <thead><tr><th>Nombre buscado</th><th>Usuario Habbo</th><th>Motto</th><th>Unique ID</th><th><label class="status-filter" for="status-filter">Estado</label><select id="status-filter" aria-label="Filtrar por estado"><option value="">Todos</option><option value="error">Error</option><option value="found">Encontrados</option><option value="not_found">No existen</option></select></th><th>Última revisión</th><th>Acciones</th></tr></thead>
+        <thead><tr><th>Nombre buscado</th><th>Usuario Habbo</th><th>Misión</th><th>Unique ID</th><th><label class="status-filter" for="status-filter">Estado</label><select id="status-filter" aria-label="Filtrar por estado"><option value="">Todos</option><option value="error">Error</option><option value="found">Encontrados</option><option value="not_found">No existen</option></select></th><th>Última revisión</th><th>Acciones</th></tr></thead>
         <tbody id="users-body"><tr><td colspan="7" class="empty">Todavía no hay registros. Selecciona un CSV para empezar.</td></tr></tbody>
       </table>
     </section>

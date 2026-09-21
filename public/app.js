@@ -159,7 +159,7 @@ async function showHistory(id, name) {
   const response = await fetch(`/api/users/${id}/history`);
   const result = await response.json();
   document.querySelector('#history-title').textContent = name;
-  document.querySelector('#history-list').innerHTML = result.history.length ? result.history.map((entry) => `<div class="history-entry"><strong>${escapeHtml(entry.habbo_name)}</strong><span>${escapeHtml(entry.motto || 'Sin motto')}</span><small>Visto desde ${new Date(entry.first_seen_at).toLocaleDateString('es-ES')}</small></div>`).join('') : '<p class="empty">Todavía no hay nombres históricos.</p>';
+  document.querySelector('#history-list').innerHTML = result.history.length ? result.history.map((entry) => `<div class="history-entry"><strong>${escapeHtml(entry.habbo_name)}</strong><span>${escapeHtml(entry.motto || 'Sin misión')}</span><small>Visto desde ${new Date(entry.first_seen_at).toLocaleDateString('es-ES')}</small></div>`).join('') : '<p class="empty">Todavía no hay nombres históricos.</p>';
   document.querySelector('#history-dialog').showModal();
 }
 
