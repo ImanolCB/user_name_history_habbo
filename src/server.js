@@ -176,7 +176,13 @@ app.patch('/api/users/:id', requireAdmin, async (request, response) => {
   if (!user) return response.status(404).json({ error: 'Registro no encontrado.' });
   if (!sourceName) return response.status(400).json({ error: 'Escribe un nombre.' });
   const duplicate = await findBySourceName(sourceName);
-  if (duplicate && duplicate.id !== user.id) return response.status(409).json({ error: 'Ese nombre ya está registrado.' });
+  if (duplicate && duplicate.id !== user.id) {
+    if (user.status === 'not_found') {
+      await deleteUser(user.id);
+      return response.json(duplicate);
+    }
+    return response.status(409).json({ error: 'Ese nombre ya está registrado.' });
+  }
   await renameUser(user.id, sourceName);
   response.json(await refreshUser(sourceName));
 });
