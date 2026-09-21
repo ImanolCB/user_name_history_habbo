@@ -3,11 +3,12 @@ const fs = require('node:fs');
 const { createClient } = require('@libsql/client');
 
 const dataDirectory = path.join(__dirname, '..', 'data');
-fs.mkdirSync(dataDirectory, { recursive: true });
-
 const tursoUrl = process.env.TURSO_DATABASE_URL_ADMIN || process.env.TURSO_DATABASE_URL;
 const tursoToken = process.env.TURSO_AUTH_TOKEN_ADMIN || process.env.TURSO_AUTH_TOKEN;
 const useTurso = Boolean(tursoUrl && tursoToken);
+
+if (!useTurso) fs.mkdirSync(dataDirectory, { recursive: true });
+
 const client = createClient({
   url: tursoUrl || `file:${path.join(dataDirectory, 'habbo.sqlite')}`,
   authToken: tursoToken
