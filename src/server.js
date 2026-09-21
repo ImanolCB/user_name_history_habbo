@@ -5,7 +5,7 @@ const crypto = require('node:crypto');
 const express = require('express');
 const multer = require('multer');
 const { parse } = require('csv-parse/sync');
-const { useTurso, ready, findBySourceName, findByComparableName, listUsers, findById, renameUser, findHistory, saveUser, addActivity, listActivity, createSuggestion, listSuggestions, updateSuggestion, updateSuggestionAvailability, deleteUser } = require('./db');
+const { useTurso, ready, findBySourceName, findByComparableName, listUsers, findById, renameUser, findHistory, saveUser, addActivity, listActivity, createSuggestion, listSuggestions, updateSuggestion, updateSuggestionAvailability, deleteUser, deletePendingUsers } = require('./db');
 const { findByName, findByUniqueId } = require('./habbo');
 
 const app = express();
@@ -61,7 +61,7 @@ function requireAdmin(request, response, next) {
 }
 
 function cleanName(value) {
-  return String(value || '').replace(/\s+/g, ' ').trim();
+  return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : '';
 }
 
 function comparableName(value) {
@@ -195,6 +195,12 @@ app.patch('/api/users/:id', requireAdmin, async (request, response) => {
   }
   await renameUser(user.id, sourceName);
   response.json(await refreshUser(sourceName));
+});
+
+app.delete('/api/users/pending', requireAdmin, async (_request, response) => {
+  const result = await deletePendingUsers();
+  response.setHeader('Cache-Control', 'private, no-store');
+  response.json({ deleted: Number(result.rowsAffected || 0) });
 });
 
 app.delete('/api/users/:id', requireAdmin, async (request, response) => {

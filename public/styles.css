@@ -14,6 +14,7 @@ h1 em { color: var(--coral); font-style: normal; }
 .upload { display: inline-block; background: var(--ink); color: white; } .upload input { display: none; } .upload:hover, .button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 7px 14px rgba(193,111,62,.18); }
 .upload-group { display: grid; gap: .3rem; } .file-name { max-width: 14rem; overflow: hidden; color: var(--muted); font: .68rem 'DM Mono', monospace; text-overflow: ellipsis; white-space: nowrap; }
 .button-primary { background: var(--lime); } .button-secondary { background: rgba(255,255,255,.45); }
+.button-danger { background: #ffd0bb; color: #79361f; border-color: #b95d3d; }
 .button:disabled { cursor: not-allowed; opacity: .45; }
 .message { color: var(--muted); font-size: .95rem; }
 #admin-button[hidden] { display: none; }

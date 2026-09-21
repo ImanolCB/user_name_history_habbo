@@ -2,6 +2,7 @@ const fileInput = document.querySelector('#csv-file');
 const importButton = document.querySelector('#import-button');
 const refreshButton = document.querySelector('#refresh-button');
 const addButton = document.querySelector('#add-button');
+const deletePendingButton = document.querySelector('#delete-pending-button');
 const adminButton = document.querySelector('#admin-button');
 const searchInput = document.querySelector('#search-input');
 const body = document.querySelector('#users-body');
@@ -23,6 +24,7 @@ fileInput.addEventListener('change', () => {
 importButton.addEventListener('click', submitImport);
 refreshButton.addEventListener('click', submitRefresh);
 addButton.addEventListener('click', () => openRecordDialog());
+deletePendingButton.addEventListener('click', deletePending);
 adminButton.addEventListener('click', () => isAdmin ? loadActivity() : document.querySelector('#admin-dialog').showModal());
 document.querySelector('#suggestion-form').addEventListener('submit', submitSuggestion);
 searchInput.addEventListener('input', debounce(() => { state.query = searchInput.value.trim(); state.page = 1; loadUsers(); }, 250));
@@ -64,7 +66,7 @@ async function loadAuth() {
 }
 
 function applyAdminVisibility(adminSurface = location.pathname.startsWith('/admin/')) {
-  [fileInput.closest('.upload-group'), importButton, refreshButton, addButton].forEach((element) => { element.hidden = !isAdmin; });
+  [fileInput.closest('.upload-group'), importButton, refreshButton, addButton, deletePendingButton].forEach((element) => { element.hidden = !isAdmin; });
   adminButton.hidden = !adminSurface;
   adminButton.textContent = isAdmin ? 'Abrir dashboard' : 'Acceder';
   document.querySelector('#suggestion-section').hidden = isAdmin;
@@ -136,6 +138,19 @@ async function deleteUser(id) {
   }
   await loadUsers();
   setBusy(false, 'Registro eliminado.');
+}
+
+async function deletePending() {
+  if (!confirm('¿Eliminar todos los registros pendientes? Esta acción no se puede deshacer.')) return;
+  setBusy(true, 'Eliminando registros pendientes...');
+  try {
+    const response = await fetch('/api/users/pending', { method: 'DELETE', headers: adminHeaders() });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'No se pudieron eliminar los pendientes.');
+    state.page = 1;
+    await loadUsers();
+    setBusy(false, `${result.deleted} registro(s) pendiente(s) eliminado(s).`);
+  } catch (error) { setBusy(false, error.message); }
 }
 
 function openRecordDialog(id = null, name = '') {
@@ -226,6 +241,7 @@ function setBusy(nextBusy, text = '') {
   importButton.disabled = busy || !fileInput.files.length;
   refreshButton.disabled = busy;
   addButton.disabled = busy;
+  deletePendingButton.disabled = busy;
   document.querySelector('#loading-indicator').hidden = !busy;
   document.querySelector('#loading-text').textContent = text || 'Cargando...';
   if (text) message.textContent = text;

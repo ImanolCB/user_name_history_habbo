@@ -87,7 +87,7 @@ async function findById(id) {
 async function listUsers({ query = '', status = '', page = 1, pageSize = 25 } = {}) {
   const safePage = Math.max(1, Number(page) || 1);
   const safePageSize = Math.min(100000, Math.max(1, Number(pageSize) || 25));
-  const safeStatus = ['found', 'not_found', 'error'].includes(status) ? status : '';
+  const safeStatus = ['found', 'not_found', 'error', 'pending'].includes(status) ? status : '';
   const text = query.trim();
   const filter = `%${text}%`;
   const textWhere = `(? = '' OR users.source_name LIKE ? COLLATE NOCASE OR users.habbo_name LIKE ? COLLATE NOCASE
@@ -99,7 +99,7 @@ async function listUsers({ query = '', status = '', page = 1, pageSize = 25 } = 
   const countRows = await many(`SELECT users.status, COUNT(*) AS total FROM users WHERE ${textWhere} GROUP BY users.status`, [text, filter, filter, filter]);
   const counts = Object.fromEntries(countRows.map((row) => [row.status, Number(row.total)]));
   const total = Number(totalRow.total);
-  return { users, total, counts: { found: counts.found || 0, not_found: counts.not_found || 0, error: counts.error || 0 }, page: safePage, pageSize: safePageSize, totalPages: Math.max(1, Math.ceil(total / safePageSize)) };
+  return { users, total, counts: { found: counts.found || 0, not_found: counts.not_found || 0, error: counts.error || 0, pending: counts.pending || 0 }, page: safePage, pageSize: safePageSize, totalPages: Math.max(1, Math.ceil(total / safePageSize)) };
 }
 
 async function saveUser(user) {
@@ -160,5 +160,8 @@ async function deleteUser(id) {
   return run('DELETE FROM users WHERE id = ?', [id]);
 }
 
-module.exports = { client, useTurso, ready, findBySourceName, findById, listUsers, saveUser, renameUser, findHistory, addActivity, listActivity, createSuggestion, listSuggestions, updateSuggestion, updateSuggestionAvailability, deleteUser };
-module.exports = { client, useTurso, ready, findBySourceName, findByComparableName, findById, listUsers, saveUser, renameUser, findHistory, addActivity, listActivity, createSuggestion, listSuggestions, updateSuggestion, updateSuggestionAvailability, deleteUser };
+async function deletePendingUsers() {
+  return run("DELETE FROM users WHERE status = 'pending'");
+}
+
+module.exports = { client, useTurso, ready, findBySourceName, findByComparableName, findById, listUsers, saveUser, renameUser, findHistory, addActivity, listActivity, createSuggestion, listSuggestions, updateSuggestion, updateSuggestionAvailability, deleteUser, deletePendingUsers };
