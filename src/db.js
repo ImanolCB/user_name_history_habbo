@@ -75,6 +75,11 @@ async function findBySourceName(sourceName) {
   return one('SELECT * FROM users WHERE source_name = ?', [sourceName]);
 }
 
+async function findByComparableName(sourceName) {
+  const comparable = String(sourceName || '').replace(/\s/g, '').toLowerCase();
+  return one("SELECT * FROM users WHERE lower(replace(source_name, ' ', '')) = ? ORDER BY CASE status WHEN 'found' THEN 0 WHEN 'not_found' THEN 1 ELSE 2 END, id LIMIT 1", [comparable]);
+}
+
 async function findById(id) {
   return one('SELECT * FROM users WHERE id = ?', [id]);
 }
@@ -156,3 +161,4 @@ async function deleteUser(id) {
 }
 
 module.exports = { client, useTurso, ready, findBySourceName, findById, listUsers, saveUser, renameUser, findHistory, addActivity, listActivity, createSuggestion, listSuggestions, updateSuggestion, updateSuggestionAvailability, deleteUser };
+module.exports = { client, useTurso, ready, findBySourceName, findByComparableName, findById, listUsers, saveUser, renameUser, findHistory, addActivity, listActivity, createSuggestion, listSuggestions, updateSuggestion, updateSuggestionAvailability, deleteUser };

@@ -5,7 +5,7 @@ const crypto = require('node:crypto');
 const express = require('express');
 const multer = require('multer');
 const { parse } = require('csv-parse/sync');
-const { useTurso, ready, findBySourceName, listUsers, findById, renameUser, findHistory, saveUser, addActivity, listActivity, createSuggestion, listSuggestions, updateSuggestion, updateSuggestionAvailability, deleteUser } = require('./db');
+const { useTurso, ready, findBySourceName, findByComparableName, listUsers, findById, renameUser, findHistory, saveUser, addActivity, listActivity, createSuggestion, listSuggestions, updateSuggestion, updateSuggestionAvailability, deleteUser } = require('./db');
 const { findByName, findByUniqueId } = require('./habbo');
 
 const app = express();
@@ -86,7 +86,7 @@ function saveCurrentUser(existing, result, status = 'found') {
 
 async function syncUser(user) {
   try {
-    const result = user.unique_id ? await findByUniqueId(user.unique_id) : await findByName(user.source_name);
+    const result = user.unique_id ? await findByUniqueId(user.unique_id) : await findByName(comparableName(user.source_name));
     if (!result) return user;
     const status = user.unique_id && user.status !== 'error' ? user.status : 'found';
     return saveCurrentUser(user, result, status);
@@ -96,7 +96,7 @@ async function syncUser(user) {
 }
 
 async function refreshUser(sourceName) {
-  const existing = await findBySourceName(sourceName);
+  const existing = await findByComparableName(sourceName);
   try {
     const result = existing?.unique_id
       ? await findByUniqueId(existing.unique_id)
@@ -151,6 +151,8 @@ app.post('/api/users', requireAdmin, async (request, response) => {
   const sourceName = cleanName(request.body?.name);
   if (!sourceName) return response.status(400).json({ error: 'Escribe un nombre.' });
   if (await findBySourceName(sourceName)) return response.status(409).json({ error: 'Ese nombre ya está registrado.' });
+    if (await findByComparableName(sourceName)) return response.status(409).json({ error: 'Ese nombre ya está registrado.' });
+    const existing = await findByComparableName(name);
   response.status(201).json(await refreshUser(sourceName));
 });
 
