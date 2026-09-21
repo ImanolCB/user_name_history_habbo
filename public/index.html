@@ -16,13 +16,13 @@
     </header>
 
     <section class="toolbar" aria-label="Acciones">
-      <label class="upload">
+      <label class="upload" hidden>
         <input id="csv-file" type="file" accept=".csv,text/csv">
         <span>Elegir CSV</span>
       </label>
-      <button id="import-button" class="button button-primary" type="button" disabled>Importar y consultar</button>
-      <button id="refresh-button" class="button button-secondary" type="button">Sincronizar nombres actuales</button>
-      <button id="add-button" class="button button-secondary" type="button">Añadir registro</button>
+      <button id="import-button" class="button button-primary" type="button" disabled hidden>Importar y consultar</button>
+      <button id="refresh-button" class="button button-secondary" type="button" hidden>Sincronizar nombres actuales</button>
+      <button id="add-button" class="button button-secondary" type="button" hidden>Añadir registro</button>
       <button id="admin-button" class="button button-secondary" type="button" hidden>Ver actividad</button>
       <span id="message" class="message" role="status"></span>
     </section>
@@ -92,7 +92,7 @@
     <p class="eyebrow">Vista protegida</p>
     <h2>Actualizaciones</h2>
     <div class="activity-table-wrap"><table><thead><tr><th>Fecha y hora</th><th>Registro</th><th>Detalle</th></tr></thead><tbody id="activity-body"></tbody></table></div>
-    <h2 class="dashboard-subtitle">Sugerencias pendientes</h2>
+    <div class="dashboard-heading"><div><p class="eyebrow">Bandeja de entrada</p><h2 class="dashboard-subtitle">Sugerencias pendientes <span id="suggestion-count" class="count-pill">0</span></h2></div><div class="bulk-actions"><button id="approve-all" class="button button-primary" type="button">Aprobar todas</button><button id="reject-all" class="button button-secondary" type="button">Rechazar todas</button></div></div>
     <div class="activity-table-wrap"><table><thead><tr><th>Fecha</th><th>Nombre</th><th>Nota</th><th>Gestión</th></tr></thead><tbody id="suggestions-body"></tbody></table></div>
   </dialog>
   <dialog id="update-dialog">

@@ -9,6 +9,12 @@ const message = document.querySelector('#message');
 const state = { page: 1, query: '', status: '', totalPages: 1, editingId: null, adminToken: null };
 let isAdmin = false;
 
+state.adminToken = sessionStorage.getItem('habbo_admin_token');
+
+function adminHeaders(extra = {}) {
+  return state.adminToken ? { ...extra, 'x-admin-token': state.adminToken } : extra;
+}
+
 fileInput.addEventListener('change', () => { importButton.disabled = !fileInput.files.length; });
 importButton.addEventListener('click', submitImport);
 refreshButton.addEventListener('click', submitRefresh);
@@ -39,12 +45,14 @@ document.querySelector('#activity-body').addEventListener('click', (event) => {
 document.querySelector('#suggestions-body').addEventListener('click', async (event) => {
   const button = event.target.closest('[data-suggestion]');
   if (!button) return;
-  await fetch(`/api/admin/suggestions/${button.dataset.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'x-admin-token': state.adminToken }, body: JSON.stringify({ status: button.dataset.suggestion === 'accept' ? 'accepted' : 'rejected' }) });
+  await fetch(`/api/admin/suggestions/${button.dataset.id}`, { method: 'PATCH', headers: adminHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ status: button.dataset.suggestion === 'accept' ? 'accepted' : 'rejected' }) });
   await loadActivity();
 });
+document.querySelector('#approve-all').addEventListener('click', () => processAllSuggestions('accepted'));
+document.querySelector('#reject-all').addEventListener('click', () => processAllSuggestions('rejected'));
 
 async function loadAuth() {
-  const response = await fetch('/api/auth/me');
+  const response = await fetch('/api/auth/me', { headers: adminHeaders() });
   const auth = await response.json();
   isAdmin = auth.admin;
   const adminSurface = location.pathname.startsWith('/admin/');
@@ -80,7 +88,7 @@ async function submitImport() {
   try {
     const data = new FormData();
     data.append('file', fileInput.files[0]);
-    const response = await fetch('/api/import', { method: 'POST', body: data });
+    const response = await fetch('/api/import', { method: 'POST', headers: adminHeaders(), body: data });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error);
     state.page = 1;
@@ -92,7 +100,7 @@ async function submitImport() {
 async function submitRefresh() {
   setBusy(true, 'Sincronizando todos los registros por uniqueId...');
   try {
-    const response = await fetch('/api/refresh', { method: 'POST' });
+    const response = await fetch('/api/refresh', { method: 'POST', headers: adminHeaders() });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error);
     message.textContent = `${result.refreshed} registro(s) actualizado(s).`;
@@ -103,7 +111,7 @@ async function submitRefresh() {
 async function refreshOne(button) {
   button.disabled = true;
   try {
-    const response = await fetch(`/api/users/${button.dataset.id}/refresh`, { method: 'POST' });
+    const response = await fetch(`/api/users/${button.dataset.id}/refresh`, { method: 'POST', headers: adminHeaders() });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error);
     message.textContent = `Registro de ${result.source_name} actualizado.`;
@@ -113,7 +121,7 @@ async function refreshOne(button) {
 
 async function deleteUser(id) {
   if (!confirm('¿Eliminar este registro?')) return;
-  const response = await fetch(`/api/users/${id}`, { method: 'DELETE', headers: { 'x-admin-token': state.adminToken } });
+  const response = await fetch(`/api/users/${id}`, { method: 'DELETE', headers: adminHeaders() });
   if (!response.ok) { message.textContent = 'No se pudo eliminar el registro.'; return; }
   message.textContent = 'Registro eliminado.';
   await loadUsers();
@@ -131,7 +139,7 @@ async function saveRecord(event) {
   event.preventDefault();
   const name = document.querySelector('#record-name').value;
   const endpoint = state.editingId ? `/api/users/${state.editingId}` : '/api/users';
-  const response = await fetch(endpoint, { method: state.editingId ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+  const response = await fetch(endpoint, { method: state.editingId ? 'PATCH' : 'POST', headers: adminHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ name }) });
   const result = await response.json();
   if (!response.ok) { document.querySelector('#record-message').textContent = result.error; return; }
   document.querySelector('#record-dialog').close();
@@ -153,6 +161,7 @@ async function unlockAdmin(event) {
   const result = await response.json();
   if (!response.ok) { document.querySelector('#admin-message').textContent = result.error; return; }
   state.adminToken = result.token;
+  sessionStorage.setItem('habbo_admin_token', result.token);
   isAdmin = true;
   applyAdminVisibility(true);
   document.querySelector('#admin-dialog').close();
@@ -161,14 +170,25 @@ async function unlockAdmin(event) {
 }
 
 async function loadActivity() {
-  const response = await fetch('/api/admin/sync-logs', { headers: { 'x-admin-token': state.adminToken } });
+  const response = await fetch('/api/admin/sync-logs', { headers: adminHeaders() });
   const result = await response.json();
   if (!response.ok) { message.textContent = result.error; return; }
   document.querySelector('#activity-body').innerHTML = result.logs.length ? result.logs.map((log) => `<tr><td>${new Date(log.created_at).toLocaleString('es-ES')}</td><td>${escapeHtml(log.message.replace(' actualizado.', ''))}</td><td><button class="link-button" data-log-message="${escapeHtml(log.message)}">Ver actualización</button></td></tr>`).join('') : '<tr><td colspan="3" class="empty">Todavía no hay actualizaciones.</td></tr>';
-  const suggestionsResponse = await fetch('/api/admin/suggestions', { headers: { 'x-admin-token': state.adminToken } });
+  const suggestionsResponse = await fetch('/api/admin/suggestions', { headers: adminHeaders() });
   const suggestions = await suggestionsResponse.json();
-  document.querySelector('#suggestions-body').innerHTML = suggestions.length ? suggestions.map((suggestion) => `<tr><td>${new Date(suggestion.created_at).toLocaleString('es-ES')}</td><td>${escapeHtml(suggestion.name)}</td><td>${escapeHtml(suggestion.note || '—')}</td><td><button class="row-action" data-suggestion="accept" data-id="${suggestion.id}">Aceptar</button><button class="link-button" data-suggestion="reject" data-id="${suggestion.id}">Rechazar</button></td></tr>`).join('') : '<tr><td colspan="4" class="empty">No hay sugerencias pendientes.</td></tr>';
+  document.querySelector('#suggestion-count').textContent = suggestions.length;
+  document.querySelector('#suggestions-body').innerHTML = suggestions.length ? suggestions.map((suggestion) => `<tr><td>${new Date(suggestion.created_at).toLocaleString('es-ES')}</td><td><strong>${escapeHtml(suggestion.name)}</strong></td><td>${escapeHtml(suggestion.note || 'Sin nota')}</td><td><button class="row-action" data-suggestion="accept" data-id="${suggestion.id}">Aprobar</button><button class="link-button" data-suggestion="reject" data-id="${suggestion.id}">Rechazar</button></td></tr>`).join('') : '<tr><td colspan="4" class="empty">No hay sugerencias pendientes.</td></tr>';
   document.querySelector('#activity-dialog').showModal();
+}
+
+async function processAllSuggestions(status) {
+  const action = status === 'accepted' ? 'aprobar' : 'rechazar';
+  if (!confirm(`¿Quieres ${action} todas las sugerencias pendientes?`)) return;
+  const response = await fetch('/api/admin/suggestions/bulk', { method: 'PATCH', headers: adminHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ status }) });
+  const result = await response.json();
+  if (!response.ok) { message.textContent = result.error; return; }
+  message.textContent = `${result.processed} sugerencia(s) procesada(s).`;
+  await loadActivity();
 }
 
 function render(result) {

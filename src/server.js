@@ -51,8 +51,7 @@ app.get('/admin/:adminPath', (request, response) => {
 function now() { return new Date().toISOString(); }
 
 function isAdmin(request) {
-  const token = request.headers['x-admin-token'] || request.headers.cookie?.match(/habbo_admin=([^;]+)/)?.[1];
-  return verifySession(token);
+  return verifySession(request.headers['x-admin-token']);
 }
 
 function requireAdmin(request, response, next) {
@@ -200,17 +199,23 @@ app.post('/api/admin/unlock', (request, response) => {
   if (!adminPassword) return response.status(503).json({ error: 'ADMIN_PASSWORD no está configurada.' });
   if (request.body?.password !== adminPassword) return response.status(401).json({ error: 'Contraseña incorrecta.' });
   const token = signSession({ exp: Math.floor(Date.now() / 1000) + sessionLifetimeSeconds });
-  const secureCookie = process.env.NODE_ENV === 'production' ? ' Secure;' : '';
-  response.setHeader('Set-Cookie', `habbo_admin=${token}; HttpOnly;${secureCookie} SameSite=Strict; Max-Age=${sessionLifetimeSeconds}; Path=/`);
   response.json({ token });
 });
 app.post('/api/admin/logout', requireAdmin, (request, response) => {
-  const secureCookie = process.env.NODE_ENV === 'production' ? ' Secure;' : '';
-  response.setHeader('Set-Cookie', `habbo_admin=; HttpOnly;${secureCookie} Max-Age=0; SameSite=Strict; Path=/`);
   response.status(204).end();
 });
 app.get('/api/admin/sync-logs', requireAdmin, async (request, response) => response.json(await listActivity(request.query)));
 app.get('/api/admin/suggestions', requireAdmin, async (_request, response) => response.json(await listSuggestions('pending')));
+app.patch('/api/admin/suggestions/bulk', requireAdmin, async (request, response) => {
+  const status = request.body?.status;
+  if (!['accepted', 'rejected'].includes(status)) return response.status(400).json({ error: 'Estado de sugerencia no válido.' });
+  const suggestions = await listSuggestions('pending');
+  for (const suggestion of suggestions) {
+    await updateSuggestion(suggestion.id, status);
+    if (status === 'accepted') await refreshUser(suggestion.name);
+  }
+  response.json({ processed: suggestions.length, status });
+});
 app.patch('/api/admin/suggestions/:id', requireAdmin, async (request, response) => {
   const status = request.body?.status;
   if (!['accepted', 'rejected'].includes(status)) return response.status(400).json({ error: 'Estado de sugerencia no válido.' });
