@@ -1,21 +1,64 @@
+require('dotenv').config();
+
 const path = require('node:path');
 const crypto = require('node:crypto');
 const express = require('express');
 const multer = require('multer');
 const { parse } = require('csv-parse/sync');
-const { findBySourceName, listUsers, findById, renameUser, findHistory, saveUser, addSyncLog, listSyncLogs } = require('./db');
+const { useTurso, ready, findBySourceName, listUsers, findById, renameUser, findHistory, saveUser, addActivity, listActivity, createSuggestion, listSuggestions, updateSuggestion, deleteUser } = require('./db');
 const { findByName, findByUniqueId } = require('./habbo');
 
 const app = express();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 const port = Number(process.env.PORT || 3000);
-const adminPassword = process.env.ADMIN_PASSWORD || 'habbo-admin';
-const adminTokens = new Set();
+const adminPassword = process.env.ADMIN_PASSWORD || (useTurso ? null : 'habbo-admin');
+const adminPathSecret = process.env.ADMIN_PATH_SECRET || (useTurso ? null : 'local-admin-path');
+const sessionLifetimeSeconds = 60 * 60 * 8;
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
+function signSession(payload) {
+  const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const signature = crypto.createHmac('sha256', adminPassword).update(encoded).digest('base64url');
+  return `${encoded}.${signature}`;
+}
+
+function verifySession(token) {
+  if (!adminPassword || !token) return false;
+  const [encoded, signature] = token.split('.');
+  if (!encoded || !signature) return false;
+  const expected = crypto.createHmac('sha256', adminPassword).update(encoded).digest('base64url');
+  if (signature.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return false;
+  try {
+    const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'));
+    return payload.exp > Math.floor(Date.now() / 1000);
+  } catch (_error) {
+    return false;
+  }
+}
+
+function isAdminPath(value) {
+  if (!adminPathSecret || !value || value.length !== adminPathSecret.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(value), Buffer.from(adminPathSecret));
+}
+
+app.get('/admin/:adminPath', (request, response) => {
+  if (!isAdminPath(request.params.adminPath)) return response.status(404).send('Not found');
+  response.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+});
+
 function now() { return new Date().toISOString(); }
+
+function isAdmin(request) {
+  const token = request.headers['x-admin-token'] || request.headers.cookie?.match(/habbo_admin=([^;]+)/)?.[1];
+  return verifySession(token);
+}
+
+function requireAdmin(request, response, next) {
+  if (!isAdmin(request)) return response.status(403).json({ error: 'Se requiere permiso de administrador.' });
+  next();
+}
 
 function cleanName(value) {
   return String(value || '').replace(/\s+/g, ' ').trim();
@@ -49,7 +92,7 @@ async function syncUser(user) {
 }
 
 async function refreshUser(sourceName) {
-  const existing = findBySourceName.get(sourceName);
+  const existing = await findBySourceName(sourceName);
   try {
     const result = existing?.unique_id
       ? await findByUniqueId(existing.unique_id)
@@ -70,14 +113,15 @@ async function refreshUser(sourceName) {
 }
 
 app.get('/api/health', (_request, response) => response.json({ ok: true }));
-app.get('/api/users', (request, response) => response.json(listUsers(request.query)));
-app.get('/api/users/:id/history', (request, response) => {
-  const user = findById.get(request.params.id);
+app.get('/api/auth/me', (request, response) => response.json({ admin: Boolean(isAdmin(request)), turso: useTurso }));
+app.get('/api/users', async (request, response) => response.json(await listUsers(request.query)));
+app.get('/api/users/:id/history', async (request, response) => {
+  const user = await findById(request.params.id);
   if (!user) return response.status(404).json({ error: 'Registro no encontrado.' });
-  response.json({ user, history: user.unique_id ? findHistory.all(user.unique_id) : [] });
+  response.json({ user, history: user.unique_id ? await findHistory(user.unique_id) : [] });
 });
 
-app.post('/api/import', upload.single('file'), async (request, response) => {
+app.post('/api/import', requireAdmin, upload.single('file'), async (request, response) => {
   if (!request.file) return response.status(400).json({ error: 'Debes seleccionar un archivo CSV.' });
   let names;
   try {
@@ -90,65 +134,96 @@ app.post('/api/import', upload.single('file'), async (request, response) => {
   const uniqueNames = [...new Set(names)];
   const results = [];
   for (const name of uniqueNames) {
-    const existing = findBySourceName.get(name);
+    const existing = await findBySourceName(name);
     results.push(existing || await refreshUser(name));
   }
   response.json({ imported: results.length, users: results });
 });
 
-app.post('/api/users', async (request, response) => {
+app.post('/api/users', requireAdmin, async (request, response) => {
   const sourceName = cleanName(request.body?.name);
   if (!sourceName) return response.status(400).json({ error: 'Escribe un nombre.' });
-  if (findBySourceName.get(sourceName)) return response.status(409).json({ error: 'Ese nombre ya está registrado.' });
+  if (await findBySourceName(sourceName)) return response.status(409).json({ error: 'Ese nombre ya está registrado.' });
   response.status(201).json(await refreshUser(sourceName));
 });
 
-app.post('/api/refresh', async (_request, response) => {
-  const users = listUsers({ page: 1, pageSize: 100000 }).users;
+app.post('/api/refresh', requireAdmin, async (_request, response) => {
+  const users = (await listUsers({ page: 1, pageSize: 100000 })).users;
   const results = [];
   const updatedAt = now();
   for (const user of users) {
     const refreshed = await syncUser(user);
     results.push(refreshed);
     if (user.status !== 'error' && user.habbo_name && refreshed.habbo_name !== user.habbo_name) {
-      addSyncLog(`Registro de ${user.source_name} actualizado.`, updatedAt);
+      await addActivity(`Registro de ${user.source_name} actualizado.`, updatedAt);
     }
   }
   response.json({ refreshed: results.length, users: results });
 });
 
-app.post('/api/users/:id/refresh', async (request, response) => {
-  const user = findById.get(request.params.id);
+app.post('/api/users/:id/refresh', requireAdmin, async (request, response) => {
+  const user = await findById(request.params.id);
   if (!user) return response.status(404).json({ error: 'Registro no encontrado.' });
   const refreshed = await refreshUser(user.source_name);
   if (user.status !== 'error' && user.habbo_name && refreshed.habbo_name !== user.habbo_name) {
-    addSyncLog(`Registro de ${user.source_name} actualizado.`);
+    await addActivity(`Registro de ${user.source_name} actualizado.`);
   }
   response.json(refreshed);
 });
 
-app.patch('/api/users/:id', async (request, response) => {
-  const user = findById.get(request.params.id);
+app.patch('/api/users/:id', requireAdmin, async (request, response) => {
+  const user = await findById(request.params.id);
   const sourceName = cleanName(request.body?.name);
   if (!user) return response.status(404).json({ error: 'Registro no encontrado.' });
   if (!sourceName) return response.status(400).json({ error: 'Escribe un nombre.' });
-  const duplicate = findBySourceName.get(sourceName);
+  const duplicate = await findBySourceName(sourceName);
   if (duplicate && duplicate.id !== user.id) return response.status(409).json({ error: 'Ese nombre ya está registrado.' });
-  renameUser.run(sourceName, user.id);
+  await renameUser(user.id, sourceName);
   response.json(await refreshUser(sourceName));
 });
 
-function requireAdmin(request, response, next) {
-  if (!request.headers['x-admin-token'] || !adminTokens.has(request.headers['x-admin-token'])) return response.status(403).json({ error: 'Se requiere permiso de administrador.' });
-  next();
-}
+app.delete('/api/users/:id', requireAdmin, async (request, response) => {
+  const user = await findById(request.params.id);
+  if (!user) return response.status(404).json({ error: 'Registro no encontrado.' });
+  await deleteUser(user.id);
+  response.status(204).end();
+});
+
+app.post('/api/suggestions', async (request, response) => {
+  const name = cleanName(request.body?.name);
+  const note = cleanName(request.body?.note);
+  if (!name) return response.status(400).json({ error: 'Escribe un nombre.' });
+  response.status(201).json(await createSuggestion(name, note));
+});
 
 app.post('/api/admin/unlock', (request, response) => {
+  if (!adminPassword) return response.status(503).json({ error: 'ADMIN_PASSWORD no está configurada.' });
   if (request.body?.password !== adminPassword) return response.status(401).json({ error: 'Contraseña incorrecta.' });
-  const token = crypto.randomBytes(24).toString('hex');
-  adminTokens.add(token);
+  const token = signSession({ exp: Math.floor(Date.now() / 1000) + sessionLifetimeSeconds });
+  const secureCookie = process.env.NODE_ENV === 'production' ? ' Secure;' : '';
+  response.setHeader('Set-Cookie', `habbo_admin=${token}; HttpOnly;${secureCookie} SameSite=Strict; Max-Age=${sessionLifetimeSeconds}; Path=/`);
   response.json({ token });
 });
-app.get('/api/admin/sync-logs', requireAdmin, (request, response) => response.json(listSyncLogs(request.query)));
+app.post('/api/admin/logout', requireAdmin, (request, response) => {
+  const secureCookie = process.env.NODE_ENV === 'production' ? ' Secure;' : '';
+  response.setHeader('Set-Cookie', `habbo_admin=; HttpOnly;${secureCookie} Max-Age=0; SameSite=Strict; Path=/`);
+  response.status(204).end();
+});
+app.get('/api/admin/sync-logs', requireAdmin, async (request, response) => response.json(await listActivity(request.query)));
+app.get('/api/admin/suggestions', requireAdmin, async (_request, response) => response.json(await listSuggestions('pending')));
+app.patch('/api/admin/suggestions/:id', requireAdmin, async (request, response) => {
+  const status = request.body?.status;
+  if (!['accepted', 'rejected'].includes(status)) return response.status(400).json({ error: 'Estado de sugerencia no válido.' });
+  const suggestion = await updateSuggestion(request.params.id, status);
+  if (!suggestion) return response.status(404).json({ error: 'Sugerencia no encontrada.' });
+  if (status === 'accepted') await refreshUser(suggestion.name);
+  response.json(suggestion);
+});
 
-app.listen(port, () => console.log(`HabboNames disponible en http://localhost:${port}`));
+function startServer() {
+  app.listen(port, () => console.log(`HabboNames disponible en http://localhost:${port}${useTurso ? ' (Turso)' : ''}`));
+}
+
+if (require.main === module) ready.then(startServer);
+
+module.exports = app;

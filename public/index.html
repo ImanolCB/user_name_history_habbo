@@ -23,13 +23,24 @@
       <button id="import-button" class="button button-primary" type="button" disabled>Importar y consultar</button>
       <button id="refresh-button" class="button button-secondary" type="button">Sincronizar nombres actuales</button>
       <button id="add-button" class="button button-secondary" type="button">Añadir registro</button>
-      <button id="admin-button" class="button button-secondary" type="button">Ver actividad</button>
+      <button id="admin-button" class="button button-secondary" type="button" hidden>Ver actividad</button>
       <span id="message" class="message" role="status"></span>
     </section>
 
     <section class="search-bar">
       <label for="search-input">Buscar por nombre actual o anterior</label>
       <input id="search-input" type="search" placeholder="Escribe un nombre..." autocomplete="off">
+    </section>
+
+    <section id="suggestion-section" class="suggestion-panel">
+      <p class="eyebrow">Bandeja de entrada</p>
+      <h2>¿Qué nombre quieres que revisemos?</h2>
+      <form id="suggestion-form" class="suggestion-form">
+        <input id="suggestion-name" name="name" maxlength="80" placeholder="Nombre de Habbo" required>
+        <input id="suggestion-note" name="note" maxlength="240" placeholder="Nota opcional">
+        <button class="button button-primary" type="submit">Enviar sugerencia</button>
+      </form>
+      <p id="suggestion-message" class="message"></p>
     </section>
 
     <section class="stats" aria-label="Resumen">
@@ -81,6 +92,8 @@
     <p class="eyebrow">Vista protegida</p>
     <h2>Actualizaciones</h2>
     <div class="activity-table-wrap"><table><thead><tr><th>Fecha y hora</th><th>Registro</th><th>Detalle</th></tr></thead><tbody id="activity-body"></tbody></table></div>
+    <h2 class="dashboard-subtitle">Sugerencias pendientes</h2>
+    <div class="activity-table-wrap"><table><thead><tr><th>Fecha</th><th>Nombre</th><th>Nota</th><th>Gestión</th></tr></thead><tbody id="suggestions-body"></tbody></table></div>
   </dialog>
   <dialog id="update-dialog">
     <form method="dialog"><button class="dialog-close" aria-label="Cerrar">×</button></form>

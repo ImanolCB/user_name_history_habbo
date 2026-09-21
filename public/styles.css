@@ -15,6 +15,8 @@ h1 em { color: var(--coral); font-style: normal; }
 .button-primary { background: var(--lime); } .button-secondary { background: transparent; }
 .button:disabled { cursor: not-allowed; opacity: .45; }
 .message { color: var(--muted); font-size: .85rem; }
+#admin-button[hidden] { display: none; }
+.suggestion-panel { max-width: 60rem; margin: 2rem 0; padding: 1.5rem; border: 1px solid var(--line); background: rgba(255,255,255,.22); } .suggestion-panel h2 { margin: .4rem 0 1rem; } .suggestion-form { display: flex; flex-wrap: wrap; gap: .65rem; } .suggestion-form input { flex: 1 1 14rem; min-width: 0; padding: .8rem; border: 1px solid var(--line); background: rgba(255,255,255,.45); font: .9rem 'Space Grotesk', sans-serif; }
 .search-bar { display: flex; align-items: center; gap: 1rem; margin: 1.5rem 0; } .search-bar label { color: var(--muted); font: .72rem 'DM Mono', monospace; text-transform: uppercase; } .search-bar input, dialog input { width: min(100%, 26rem); padding: .8rem; border: 1px solid var(--line); background: rgba(255,255,255,.35); color: var(--ink); font: .95rem 'Space Grotesk', sans-serif; } .search-bar input:focus, dialog input:focus { outline: 2px solid var(--teal); }
 .stats { display: flex; gap: 3rem; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 1.25rem 0; margin-bottom: 2rem; }
 .stats div { display: flex; align-items: baseline; gap: .6rem; } .stats span { font-size: 2rem; font-weight: 600; } .stats small { color: var(--muted); }
