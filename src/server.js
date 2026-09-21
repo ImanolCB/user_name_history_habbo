@@ -5,7 +5,7 @@ const crypto = require('node:crypto');
 const express = require('express');
 const multer = require('multer');
 const { parse } = require('csv-parse/sync');
-const { useTurso, ready, findBySourceName, listUsers, findById, renameUser, findHistory, saveUser, addActivity, listActivity, createSuggestion, listSuggestions, updateSuggestion, deleteUser } = require('./db');
+const { useTurso, ready, findBySourceName, listUsers, findById, renameUser, findHistory, saveUser, addActivity, listActivity, createSuggestion, listSuggestions, updateSuggestion, updateSuggestionAvailability, deleteUser } = require('./db');
 const { findByName, findByUniqueId } = require('./habbo');
 
 const app = express();
@@ -216,6 +216,19 @@ app.post('/api/admin/logout', requireAdmin, (request, response) => {
 });
 app.get('/api/admin/sync-logs', requireAdmin, async (request, response) => response.json(await listActivity(request.query)));
 app.get('/api/admin/suggestions', requireAdmin, async (_request, response) => response.json(await listSuggestions('pending')));
+app.post('/api/admin/suggestions/check', requireAdmin, async (_request, response) => {
+  const suggestions = await listSuggestions('pending');
+  const results = [];
+  for (const suggestion of suggestions) {
+    try {
+      const result = await findByName(suggestion.name);
+      results.push(await updateSuggestionAvailability(suggestion.id, result ? 'found' : 'not_found'));
+    } catch (_error) {
+      results.push(await updateSuggestionAvailability(suggestion.id, 'error'));
+    }
+  }
+  response.json({ checked: results.length, suggestions: results });
+});
 app.patch('/api/admin/suggestions/bulk', requireAdmin, async (request, response) => {
   const status = request.body?.status;
   if (!['accepted', 'rejected'].includes(status)) return response.status(400).json({ error: 'Estado de sugerencia no válido.' });

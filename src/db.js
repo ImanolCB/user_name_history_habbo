@@ -50,7 +50,9 @@ const schema = [
   )`
 ];
 
-const ready = schema.reduce((promise, sql) => promise.then(() => client.execute(sql)), Promise.resolve());
+const ready = schema.reduce((promise, sql) => promise.then(() => client.execute(sql)), Promise.resolve())
+  .then(() => client.execute("ALTER TABLE suggestions ADD COLUMN availability TEXT NOT NULL DEFAULT 'pending'" ).catch(() => undefined))
+  .then(() => client.execute('ALTER TABLE suggestions ADD COLUMN checked_at TEXT').catch(() => undefined));
 
 async function one(sql, args = []) {
   await ready;
@@ -144,8 +146,13 @@ async function updateSuggestion(id, status) {
   return one('SELECT * FROM suggestions WHERE id = ?', [id]);
 }
 
+async function updateSuggestionAvailability(id, availability) {
+  await run('UPDATE suggestions SET availability = ?, checked_at = CURRENT_TIMESTAMP WHERE id = ?', [availability, id]);
+  return one('SELECT * FROM suggestions WHERE id = ?', [id]);
+}
+
 async function deleteUser(id) {
   return run('DELETE FROM users WHERE id = ?', [id]);
 }
 
-module.exports = { client, useTurso, ready, findBySourceName, findById, listUsers, saveUser, renameUser, findHistory, addActivity, listActivity, createSuggestion, listSuggestions, updateSuggestion, deleteUser };
+module.exports = { client, useTurso, ready, findBySourceName, findById, listUsers, saveUser, renameUser, findHistory, addActivity, listActivity, createSuggestion, listSuggestions, updateSuggestion, updateSuggestionAvailability, deleteUser };

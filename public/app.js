@@ -182,10 +182,11 @@ async function loadActivity() {
   const result = await response.json();
   if (!response.ok) { message.textContent = result.error; return; }
   document.querySelector('#activity-body').innerHTML = result.logs.length ? result.logs.map((log) => `<tr><td>${new Date(log.created_at).toLocaleString('es-ES')}</td><td>${escapeHtml(log.message.replace(' actualizado.', ''))}</td><td><button class="link-button" data-log-message="${escapeHtml(log.message)}">Ver actualización</button></td></tr>`).join('') : '<tr><td colspan="3" class="empty">Todavía no hay actualizaciones.</td></tr>';
+  await fetch('/api/admin/suggestions/check', { method: 'POST', headers: adminHeaders() });
   const suggestionsResponse = await fetch('/api/admin/suggestions', { headers: adminHeaders() });
   const suggestions = await suggestionsResponse.json();
   document.querySelector('#suggestion-count').textContent = suggestions.length;
-  document.querySelector('#suggestions-body').innerHTML = suggestions.length ? suggestions.map((suggestion) => `<tr><td>${new Date(suggestion.created_at).toLocaleString('es-ES')}</td><td><strong>${escapeHtml(suggestion.name)}</strong></td><td>${escapeHtml(suggestion.note || 'Sin nota')}</td><td><button class="row-action" data-suggestion="accept" data-id="${suggestion.id}">Aprobar</button><button class="link-button" data-suggestion="reject" data-id="${suggestion.id}">Rechazar</button></td></tr>`).join('') : '<tr><td colspan="4" class="empty">No hay sugerencias pendientes.</td></tr>';
+  document.querySelector('#suggestions-body').innerHTML = suggestions.length ? suggestions.map((suggestion) => `<tr class="suggestion-${suggestion.availability || 'pending'}"><td>${new Date(suggestion.created_at).toLocaleString('es-ES')}</td><td><strong>${escapeHtml(suggestion.name)}</strong><span class="suggestion-status">${suggestionStatus(suggestion.availability)}</span></td><td>${escapeHtml(suggestion.note || 'Sin nota')}</td><td><button class="row-action" data-suggestion="accept" data-id="${suggestion.id}">Aprobar</button><button class="link-button" data-suggestion="reject" data-id="${suggestion.id}">Rechazar</button></td></tr>`).join('') : '<tr><td colspan="4" class="empty">No hay sugerencias pendientes.</td></tr>';
   document.querySelector('#activity-dialog').showModal();
 }
 
@@ -213,6 +214,7 @@ function render(result) {
 
 function changePage(delta) { state.page = Math.min(state.totalPages, Math.max(1, state.page + delta)); loadUsers(); }
 function label(status) { return ({ found: 'Encontrado', not_found: 'No existe', error: 'Error', pending: 'Pendiente' })[status] || status; }
+function suggestionStatus(status) { return ({ found: 'Existe', not_found: 'No encontrado', error: 'Error de consulta', pending: 'Comprobando' })[status] || 'Comprobando'; }
 function escapeHtml(value) { return String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[char]); }
 function setBusy(nextBusy, text = '') {
   busy = nextBusy;
