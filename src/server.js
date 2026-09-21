@@ -63,6 +63,10 @@ function cleanName(value) {
   return String(value || '').replace(/\s+/g, ' ').trim();
 }
 
+function comparableName(value) {
+  return cleanName(value).replace(/\s/g, '').toLowerCase();
+}
+
 function normalizeRows(csvText) {
   const records = parse(csvText.replace(/^\uFEFF/, ''), { skip_empty_lines: true, relax_column_count: true });
   if (!records.length) return [];
@@ -101,7 +105,7 @@ async function refreshUser(sourceName) {
       return saveUser({ sourceName, uniqueId: existing?.unique_id || null, habboName: existing?.habbo_name || null, motto: existing?.motto || null, status: 'not_found', lastCheckedAt: now() });
     }
 
-    if (existing?.unique_id && result.name.trim().toLowerCase() !== sourceName.trim().toLowerCase()) {
+    if (existing?.unique_id && comparableName(result.name) !== comparableName(sourceName)) {
       return saveCurrentUser(existing, result, 'not_found');
     }
 
