@@ -48,6 +48,10 @@ async function loadAuth() {
   const auth = await response.json();
   isAdmin = auth.admin;
   const adminSurface = location.pathname.startsWith('/admin/');
+  applyAdminVisibility(adminSurface);
+}
+
+function applyAdminVisibility(adminSurface = location.pathname.startsWith('/admin/')) {
   [fileInput.closest('.upload'), importButton, refreshButton, addButton].forEach((element) => { element.hidden = !isAdmin; });
   adminButton.hidden = !adminSurface;
   adminButton.textContent = isAdmin ? 'Abrir dashboard' : 'Acceder';
@@ -149,6 +153,8 @@ async function unlockAdmin(event) {
   const result = await response.json();
   if (!response.ok) { document.querySelector('#admin-message').textContent = result.error; return; }
   state.adminToken = result.token;
+  isAdmin = true;
+  applyAdminVisibility(true);
   document.querySelector('#admin-dialog').close();
   document.querySelector('#admin-password').value = '';
   loadActivity();
