@@ -14,6 +14,7 @@ const port = Number(process.env.PORT || 3000);
 const adminPassword = process.env.ADMIN_PASSWORD || (useTurso ? null : 'habbo-admin');
 const adminPathSecret = process.env.ADMIN_PATH_SECRET || (useTurso ? null : 'local-admin-path');
 const sessionLifetimeSeconds = 60 * 60 * 8;
+const suggestionCheckTtlMs = Math.max(60000, Number(process.env.SUGGESTION_CHECK_TTL_MS || 900000));
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
@@ -117,7 +118,10 @@ async function refreshUser(sourceName) {
 
 app.get('/api/health', (_request, response) => response.json({ ok: true }));
 app.get('/api/auth/me', (request, response) => response.json({ admin: Boolean(isAdmin(request)), turso: useTurso }));
-app.get('/api/users', async (request, response) => response.json(await listUsers(request.query)));
+app.get('/api/users', async (request, response) => {
+  response.setHeader('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=60');
+  response.json(await listUsers(request.query));
+});
 app.get('/api/users/:id/history', async (request, response) => {
   const user = await findById(request.params.id);
   if (!user) return response.status(404).json({ error: 'Registro no encontrado.' });
@@ -220,6 +224,10 @@ app.post('/api/admin/suggestions/check', requireAdmin, async (_request, response
   const suggestions = await listSuggestions('pending');
   const results = [];
   for (const suggestion of suggestions) {
+    if (suggestion.checked_at && Date.now() - new Date(suggestion.checked_at).getTime() < suggestionCheckTtlMs) {
+      results.push(suggestion);
+      continue;
+    }
     try {
       const result = await findByName(suggestion.name);
       results.push(await updateSuggestionAvailability(suggestion.id, result ? 'found' : 'not_found'));

@@ -1,5 +1,8 @@
 const HABBO_BASE_URL = 'https://www.habbo.es/api/public/users';
 const requestDelayMs = Math.max(250, Number(process.env.HABBO_REQUEST_DELAY_MS || 400));
+const cacheTtlMs = Math.max(60000, Number(process.env.HABBO_CACHE_TTL_MS || 900000));
+const responseCache = new Map();
+const pendingRequests = new Map();
 let requestChain = Promise.resolve();
 
 function wait(milliseconds) {
@@ -12,6 +15,22 @@ function retryDelay(response) {
 }
 
 async function requestJson(url) {
+  const cached = responseCache.get(url);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+  if (pendingRequests.has(url)) return pendingRequests.get(url);
+
+  const request = requestJsonUncached(url);
+  pendingRequests.set(url, request);
+  try {
+    const value = await request;
+    responseCache.set(url, { value, expiresAt: Date.now() + cacheTtlMs });
+    return value;
+  } finally {
+    pendingRequests.delete(url);
+  }
+}
+
+async function requestJsonUncached(url) {
   let response;
   requestChain = requestChain.catch(() => undefined).then(async () => {
     await wait(requestDelayMs);
